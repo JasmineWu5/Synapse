@@ -1,0 +1,56 @@
+model: models.ParticleTransformer.ParticleTransformer
+
+model_params:
+  input_dim: 6
+  num_classes: 2
+  pair_input_dim: 4
+  use_pre_activation_pair: false
+  embed_dims: [64, 256, 64]
+  pair_embed_dims: [32, 32, 32]
+  num_heads: 4
+  num_layers: 4
+  num_cls_layers: 1
+  block_params: null
+  cls_block_params:
+    'dropout': 0
+    'attn_dropout': 0
+    'activation_dropout': 0
+  fc_params: []
+  activation: 'gelu'
+  trim: True
+  for_inference: False
+
+load_model:
+
+training_step_function:
+
+validation_step_function:
+
+test_step_function:
+
+loss_function:
+  name: loss_functions.loss.CrossEntropyLossWeighted
+  params:
+
+start_lr: 0.001
+
+optimizer: "Ranger"
+#  name: AdamW
+#  params:
+
+lr_scheduler: "steps"
+#  name: steps
+#  params:
+
+metrics:
+  Accuracy:
+    function: torchmetrics.classification.Accuracy
+    params:
+      task: 'multiclass'
+      num_classes: 2
+  AUC:
+    function: torchmetrics.classification.AUROC
+    params:
+      task: 'multiclass'
+      num_classes: 2
+

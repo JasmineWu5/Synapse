@@ -1,0 +1,72 @@
+train_files:
+  - /Users/shudong/PycharmProjects/Synapse/local_test/output/*/fold_0.root
+
+val_files:
+  - /Users/shudong/PycharmProjects/Synapse/local_test/output/*/fold_1.root
+
+test_files:
+  - /Users/shudong/PycharmProjects/Synapse/local_test/output/*/fold_2.root
+
+train_load_range: [0.0, 1.0]
+train_normalized_range: true
+val_load_range: [0.0, 1.0]
+val_normalized_range: true
+test_load_range: [0.0, 1.0]
+test_normalized_range: true
+
+tree_name: sr
+
+new_variables:
+  log1p_pt: "np.log1p(pt)"
+  log1p_e: "np.log1p(e)"
+  px: "pt * np.cos(phi)"
+  py: "pt * np.sin(phi)"
+  pz: "pt * np.sinh(eta)"
+
+
+selection:
+
+
+inputs:
+  obj_feats:
+    - log1p_pt
+    - eta
+    - phi
+    - log1p_e
+    - pdg
+    - charge
+  obj_4vecs:
+    - px
+    - py
+    - pz
+    - e
+  mask:
+    - valid
+#  evt_feats:
+#    - HT_vis
+#    - HT_lep
+#    - HT_jet
+#    - HT_lepMET
+#    - m_all
+#    - dilep_type
+
+
+labels:
+  categorical:
+    - label_signal
+    - label_background
+
+
+spectators:
+  - eventNumber
+  - dsid
+  - xgb_score
+
+
+weights:
+  balance_weights: true
+  weight_balance_factors:  # corresponds to the order of the categorical labels
+    - 1627.1133084735
+    - 1.0
+  vars:
+    - weight

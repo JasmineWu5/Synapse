@@ -1,0 +1,28 @@
+run_dir: 'local_test/run_1'  # Directory to save the run outputs
+
+run_mode: 'train'
+
+device: 'cpu'
+
+n_devices: 'auto'  # 'auto' for automatic detection, or specify a number
+
+epochs: 50
+
+start_epoch: 0
+
+batch_size: 512
+
+num_workers: 1
+
+cross_validation: true
+
+k_folds: 3
+
+logger_config:
+  enable_stdout: true
+  log_file: 'logs/run_log_{auto}.log'
+
+seed: 42
+use_amp: false
+
+# export_onnx: 'model.onnx' # not supported yet
