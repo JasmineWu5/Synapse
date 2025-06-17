@@ -88,7 +88,7 @@ class ConfigBase(ABC):
         errors = self.validate()
         if errors:
             raise ValueError(
-                f"Validation failed in {self.__class__.__name__}:\n" +
+                f"Config validation failed in {self.__class__.__name__}:\n" +
                 "\n".join(f" - {err}" for err in errors)
             )
 
@@ -150,7 +150,7 @@ class ConfigBase(ABC):
         if errors:
             self._data.pop(key, None)  # Revert invalid change
             raise RuntimeError(
-                f"Validation failed after setting '{key}':\n" +
+                f"Config validation failed after setting '{key}':\n" +
                 "\n".join(f" - {err}" for err in errors)
             )
 
@@ -210,10 +210,10 @@ class DataConfig(ConfigBase):
         'new_variables': (dict, NoneType),
         'spectators': (list, NoneType),
         'weights': (dict, NoneType),
-        'label_variables': list,
-        'active_variables': list,
-        'final_weight_variable': str,
-        'final_label_variables': list,
+        'label_keys': list,
+        'active_keys': list,
+        'weight_key': str,
+        'final_label_keys': list,
     }
 
     REQUIRED_KEYS = ['inputs', 'labels']
@@ -223,27 +223,27 @@ class DataConfig(ConfigBase):
 
         data = object.__getattribute__(self, '_data')
         # construct internal items
-        data['label_variables'] = list(data['labels'].values())
-        data['active_variables'] = flatten_nested_list([
+        data['label_keys'] = list(data['labels'].values())
+        data['active_keys'] = flatten_nested_list([
             *data['inputs'].values(),
-            *data['label_variables'],
+            *data['label_keys'],
             *data.get('weights', {}).get('vars', [])
         ])
 
         if data['spectators']:
-            data['spectators'] = data['spectators'].extend(data['label_variables'])
+            data['spectators'] = data['spectators'].extend(data['label_keys'])
         else:
-            data['spectators'] = data['label_variables']
+            data['spectators'] = data['label_keys']
 
-        data['final_weight_variable'] = '_weight'
+        data['weight_key'] = '_weight'
         if data['labels'].get('categorical'):
-            data['final_label_variables'] = ['_class_label', *data['labels'].get('continuous', [])]
+            data['final_label_keys'] = ['_class_label', *data['labels'].get('continuous', [])]
         else:
-            data['final_label_variables'] = data['labels'].get('continuous', [])
+            data['final_label_keys'] = data['labels'].get('continuous', [])
 
         _new_var_dict = {}
         # label things
-        if '_class_label' in data['final_label_variables']:
+        if '_class_label' in data['final_label_keys']:
             class_labels = [f'ak.to_numpy({k})' for k in data['labels'].get('categorical')]
             _new_var_dict['_class_label'] = f'np.argmax(np.stack([{",".join(class_labels)}], axis=1), axis=1)'
         # weight things
@@ -335,6 +335,15 @@ class ModelConfig(ConfigBase):
         # Check types
         errors.extend(self._check_types())
 
+        # Auto-set sensible defaults
+        self._data.setdefault('lr_scheduler', None)
+
+        # Validate values
+        if self._data['lr_scheduler']:
+            if self._data['lr_scheduler'] not in ['steps', 'cosine', 'one-cycle']:
+                errors.append(f"Not supported learning rate scheduler: {self._data['lr_scheduler']}. "
+                              f"Must be one of ['step', 'cosine', 'linear', 'exponential']")
+
         return errors
 
 
@@ -358,6 +367,7 @@ class RunConfig(ConfigBase):
         'logger_config': dict,
         'seed': (int, NoneType),
         'use_amp': bool,
+        'test_output': (str, NoneType),
         'export_onnx': (str, NoneType),
     }
 
@@ -386,6 +396,7 @@ class RunConfig(ConfigBase):
         self._data.setdefault('k_folds', None)
         self._data.setdefault('seed', None)
         self._data.setdefault('use_amp', False)
+        self._data.setdefault('test_output', None)
         self._data.setdefault('export_onnx', None)
 
         # Validate values

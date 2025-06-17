@@ -24,10 +24,10 @@ def prepare_data(data: ak.Array, data_cfg: DataConfig, dataset_type: str) -> dic
     # TODO: check if the data is empty after selection
     # TODO: check if the data only have one class in classification tasks
     # TODO: check if the data have entries with more/less than one active label in classification tasks
-    # Check if all active variables are valid
-    # activate_variables: inputs, label_variables, weights
+    # Check if all active keys are valid
+    # active_keys: inputs, label_keys, weights
     # spectators don't need to be checked, since they will not be fed to the model
-    for var in data_cfg.active_variables:
+    for var in data_cfg.active_keys:
         if np.any(np.isnan(data[var])):
             data[var] = np.nan_to_num(data[var], posinf=np.inf, neginf=-np.inf)
             _logger.warning(f"NaN values found in variable '{var}', replaced with zeros.")
@@ -37,10 +37,13 @@ def prepare_data(data: ak.Array, data_cfg: DataConfig, dataset_type: str) -> dic
     prepared_data = {}
     for k, vs in data_cfg.inputs.items():
         prepared_data[k] = ak.to_numpy(ak.concatenate([data[v][:, np.newaxis] for v in vs], axis=1)).astype(np.float32)
-    for k in data_cfg.final_label_variables:
-        prepared_data[k] = ak.to_numpy(data[k])
-    if data_cfg.final_weight_variable in data.fields:
-        prepared_data[data_cfg.final_weight_variable] = ak.to_numpy(data[data_cfg.final_weight_variable])
+    for k in data_cfg.final_label_keys:
+        if k == '_class_label':
+            prepared_data[k] = ak.to_numpy(data[k]).astype(np.int64)
+        else:
+            prepared_data[k] = ak.to_numpy(data[k])
+    if data_cfg.weight_key in data.fields:
+        prepared_data[data_cfg.weight_key] = ak.to_numpy(data[data_cfg.weight_key]).astype(np.float32)
     if dataset_type == 'test':
         for k in data_cfg.spectators:
             prepared_data[k] = ak.to_numpy(data[k])
@@ -65,7 +68,7 @@ class MapStyleDataset(Dataset):
         self.data_cfg = data_cfg
         if dataset_type not in ['train', 'val', 'test']:
             raise ValueError(f"Invalid dataset type: {dataset_type}. Must be one of ['train', 'val', 'test'].")
-        keys = data_cfg.active_variables
+        keys = data_cfg.active_keys
         if dataset_type == 'test':
             keys.extend(data_cfg.spectators)
         if data_cfg.new_variables:
@@ -88,8 +91,8 @@ class MapStyleDataset(Dataset):
         # Don't use np.ndarray.copy() here, as it will return a view of the original array in some cases
         # TODO: copy.deepcopy() is not efficient, consider using a more efficient method if needed
         x = {k: copy.deepcopy(self.data[k][idx]) for k in self.data_cfg.inputs.keys()}
-        y = {k: copy.deepcopy(self.data[k][idx]) for k in self.data_cfg.final_label_variables}
-        w = {self.data_cfg.final_weight_variable:  copy.deepcopy(self.data[self.data_cfg.final_weight_variable][idx])}
+        y = {k: copy.deepcopy(self.data[k][idx]) for k in self.data_cfg.final_label_keys}
+        w = {self.data_cfg.weight_key:  copy.deepcopy(self.data[self.data_cfg.weight_key][idx])}
         s = {}
         # TODO: spectators will be converted to tensors, but not necessary, we need to improve this
         if self.dataset_type == 'test':
