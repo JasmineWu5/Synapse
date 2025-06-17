@@ -243,7 +243,7 @@ class ROOTFileReader(FileReaderBase):
 def read_files(
         file_paths: list[str],
         keys: list[str],
-        load_range: tuple[float, float] | tuple[int, int] = (0.0, 1.0),
+        load_range: tuple = (0.0, 1.0),
         normalized_range: bool = True,
         merge: bool = True,
         **kwargs
@@ -254,7 +254,7 @@ def read_files(
     Args:
         file_paths (list[str]): list of file paths
         keys (list[str]): list of keys to read
-        load_range (tuple[float, float] | tuple[int, int]): range of data to load
+        load_range (tuple): range of data to load
         normalized_range (bool): whether the `load_range` is normalized
         merge (bool): whether to merge the data from all files
         **kwargs: additional arguments for the file reader
