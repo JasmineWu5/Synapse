@@ -5,6 +5,7 @@ import math
 
 import awkward as ak
 import numpy as np
+import torch
 
 _logger = logging.getLogger("SynapseLogger")
 
@@ -170,3 +171,20 @@ def flatten_nested_list(lst):
             result.append(item)
     return result
 
+def is_scalar(value):
+    """
+    Check if the value is a scalar.
+    """
+    if isinstance(value, (int, float, bool)):
+        return True
+
+    if isinstance(value, np.generic):
+        return True
+
+    if isinstance(value, np.ndarray):
+        return value.ndim == 0
+
+    if torch.is_tensor(value):
+        return value.dim() == 0
+
+    return False
