@@ -3,15 +3,88 @@ import inspect
 from typing import Dict, Any
 import logging
 
+import awkward as ak
 import lightning as L
+import numpy as np
 import torch
 from torch.optim import Adam, AdamW, RAdam
 
-from core.config import RunConfig
-from core.tools import dynamic_import
+from core.config import DataConfig, ModelConfig, RunConfig
+from core.tools import dynamic_import, is_scalar
 from core.optimizers import Ranger
+from core.fileio import write_file
 
 _logger = logging.getLogger("SynapseLogger")
+
+class SaveTestOutputs(L.Callback):
+    """
+    Callback to save test outputs after the test ends.
+    """
+    def __init__(self, data_cfg: DataConfig, model_cfg: ModelConfig, run_cfg: RunConfig, output_filepath: str):
+        super().__init__()
+        self.test_outputs = []
+        self.data_cfg = data_cfg
+        self.model_cfg = model_cfg
+        self.run_cfg = run_cfg
+        self.output_filepath = output_filepath
+        if not self.output_filepath.endswith(".root"):
+            raise ValueError("Output filepath doesn't end with .root extension.")
+
+    def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+        """
+        Collect outputs from the test step.
+        """
+        labels = {k: v.numpy(force=True) for k,v in batch[1].items()}
+        self.test_outputs.append(
+            {
+                "scores": outputs["scores"],
+                "labels": labels,
+                "weight": outputs["weight"],
+                "spectators": outputs.get("spectators", {}),
+            }
+        )
+
+    def on_test_end(self, trainer, pl_module):
+        """
+        Save the collected test outputs to a root file.
+        """
+        if not self.test_outputs:
+            _logger.warning("No test outputs collected.")
+            return
+
+        all_scores = np.concatenate([o["scores"] for o in self.test_outputs], axis=0)
+        all_labels = {k: np.concatenate([o["labels"][k] for o in self.test_outputs], axis=0) for k in self.test_outputs[0]["labels"].keys()}
+        all_weights = np.concatenate([o["weight"] for o in self.test_outputs], axis=0)
+        all_spectators = {k: np.concatenate([o["spectators"][k] for o in self.test_outputs], axis=0) for k in self.test_outputs[0]["spectators"].keys()}
+
+        _logger.info(f"Saving test outputs: {len(self.test_outputs)} batches collected.")
+        self.save_to_root(all_scores, all_labels, all_weights, all_spectators)
+
+    def save_to_root(self, scores, labels, weights, spectators):
+        """
+        Save the test outputs to a ROOT file.
+        """
+        output = {}
+        if "_class_label" in labels.keys():
+            for idx, label_name in enumerate(self.data_cfg.labels["categorical"]):
+                output[label_name] = labels["_class_label"] == idx
+                output[label_name + "_score"] = scores[:, idx]
+            labels.pop("_class_label")
+
+        if len(labels.keys()) > 0:
+            if self.model_cfg.model_params.get("num_classes"):
+                n_classes = self.model_cfg.model_params["num_classes"]
+            else:
+                n_classes = len(self.data_cfg.labels.get("categorical",[]))
+            for idx, label_name in enumerate(self.data_cfg.labels["continuous"]):
+                output[label_name] = labels[label_name]
+                output[label_name + "_pred"] = scores[:, n_classes + idx]
+
+        output["weights"] = weights
+        output.update(spectators)
+        write_file(self.output_filepath, ak.Array(output))
+
+        _logger.info(f"Test outputs saved to {self.output_filepath}.")
 
 class ModelModule(L.LightningModule):
     def __init__(
@@ -96,7 +169,7 @@ class ModelModule(L.LightningModule):
 
         self.optimizer = optimizer.lower()
         self.start_lr = start_lr
-        self.lr_scheduler = lr_scheduler.lower()
+        self.lr_scheduler = lr_scheduler.lower() if lr_scheduler else None
 
         self.metrics = {}
         if metrics:
@@ -104,16 +177,33 @@ class ModelModule(L.LightningModule):
                 metric_fn = dynamic_import(metric_fn_dict['function'])
                 if inspect.isclass(metric_fn) and issubclass(metric_fn, torch.nn.Module):
                     if metric_fn_dict.get('params'):
-                        self.metrics[metric_name] = metric_fn(**metric_fn_dict['params'])
+                        self.metrics[metric_name] = {"fn":metric_fn(**metric_fn_dict['params'])}
                     else:
-                        self.metrics[metric_name] = metric_fn()
+                        self.metrics[metric_name] = {"fn":metric_fn()}
                 elif inspect.isfunction(metric_fn):
                     if metric_fn_dict.get('params'):
-                        self.metrics[metric_name] = partial(metric_fn, **metric_fn_dict['params'])
+                        self.metrics[metric_name] = {"fn":partial(metric_fn, **metric_fn_dict['params'])}
                     else:
-                        self.metrics[metric_name] = partial(metric_fn)
+                        self.metrics[metric_name] = {"fn":partial(metric_fn)}
                 else:
                     raise TypeError(f"Invalid metric function: {metric_fn}")
+                # TODO: move this to model_config validation
+                self.metrics[metric_name]['on_step'] = metric_fn_dict.get('on_step', False)
+                self.metrics[metric_name]['on_epoch'] = metric_fn_dict.get('on_epoch', True)
+                self.metrics[metric_name]['stages'] = metric_fn_dict.get('stages', ["train", "val", "test"])
+                self.metrics[metric_name]['is_reference'] = metric_fn_dict.get('is_reference', False)
+
+        # TODO: move this validation to model_config validation
+        # validate is_reference flag is unique
+        is_reference_count = sum(1 for m in self.metrics.values() if m['is_reference'])
+        if is_reference_count > 1:
+            raise ValueError("Only one metric can be marked as reference (is_reference=True).")
+
+        self.step_outputs = {
+            "train": [],
+            "val": [],
+            "test": []
+        }
 
     def forward(self, *args, **kwargs) -> torch.Tensor:
         """
@@ -121,23 +211,38 @@ class ModelModule(L.LightningModule):
         """
         return self.model(*args, **kwargs)
 
-    def _shared_default_step(self, batch: Any, stage: str) -> torch.Tensor:
+    def _shared_default_step(self, batch: Any, stage: str):
         x, y, w, s = batch
         inputs = [x[k] for k in x.keys()]
         labels = [y[k] for k in y.keys()]
         weight = [w[k] for k in w.keys()][0]
 
-        outputs = self(*inputs)
+        logits = self(*inputs)
 
-        loss = self.loss_fn(outputs, *labels, weight)
+        loss = self.loss_fn(logits, *labels, weight = weight)
 
-        self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        # _logger.info(f"{stage}_loss: {loss}")
-        for metric_name, metric_fn in self.metrics.items():
-            # FIXME: some metrics need to consider the weight
-            metric = metric_fn(outputs, *labels)
-            self.log(f"{stage}_{metric_name}", metric, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            # _logger.info(f"{stage}_{metric_name}: {metric}")
+        self.log(f"{stage}/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        for metric_name, metric_fn_dict in self.metrics.items():
+            if stage in metric_fn_dict["stages"] and metric_fn_dict["on_step"]:
+                metric = metric_fn_dict['fn'](logits, *labels, weight = weight)
+                if is_scalar(metric):
+                    self.log(f"{stage}/{metric_name}_step", metric, on_step=True, prog_bar=True, logger=True)
+
+        self.step_outputs[stage].append(
+            {
+                "logits": logits.detach(),
+                "labels": [label.detach() for label in labels],
+                "weight": weight.detach(),
+            }
+        )
+
+        if stage == "test":
+            return {
+                "loss": loss,
+                "scores": torch.softmax(logits, dim=1).numpy(force=True),
+                "weight": weight.numpy(force=True),
+                "spectators": {k: s[k].numpy(force=True) for k in s.keys()}
+            }
 
         return loss
 
@@ -159,8 +264,38 @@ class ModelModule(L.LightningModule):
     def test_step(self, batch, batch_idx):
         return self._test_step(batch)
 
-    # def on_validation_epoch_end(self):
-    #     val_loss = self.trainer.callback_metrics["val_loss"].item()
+    def _shared_on_epoch_end(self, stage: str):
+
+        outputs = self.step_outputs[stage]
+
+        all_logits = torch.cat([o["logits"] for o in outputs])
+        all_labels = []
+        for i in range(len(outputs[0]["labels"])):
+            all_labels.append(torch.cat([o["labels"][i] for o in outputs]))
+        all_weights = torch.cat([o["weight"] for o in outputs])
+
+        ref_metric = self.trainer.callback_metrics.get(f"{stage}/loss_epoch")
+
+        for metric_name, metric_fn_dict in self.metrics.items():
+            if stage in metric_fn_dict["stages"] and metric_fn_dict["on_epoch"]:
+                metric = metric_fn_dict['fn'](all_logits, *all_labels, weight=all_weights)
+                _logger.info(f"{stage}/{metric_name}_epoch: \n{metric}")
+                if is_scalar(metric):
+                    self.log(f"{stage}/{metric_name}_epoch", metric, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                if metric_fn_dict["is_reference"]:
+                    ref_metric = metric
+        # TODO: use ref_metric to determine the best model, move this logic to a separate callback
+
+        self.step_outputs[stage].clear()
+
+    def on_train_epoch_end(self):
+        self._shared_on_epoch_end("train")
+
+    def on_validation_epoch_end(self):
+        self._shared_on_epoch_end("val")
+
+    def on_test_epoch_end(self):
+        self._shared_on_epoch_end("test")
 
     def configure_optimizers(self):
         # TODO: record LR
