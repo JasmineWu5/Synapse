@@ -8,7 +8,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 from core.config import ConfigManager
 from core.logger import EnhancedLogger
-from core.model_module import ModelModule
+from core.model_module import ModelModule, SaveTestOutputs
 from core.data_module import DataModule
 
 
@@ -27,7 +27,7 @@ def main(_args: argparse.Namespace):
     # Initialize the logger
     logger_config = run_config.logger_config
 
-    def update_log_file_path(log_file_path: str, replace_auto: str, suffix: str="") -> str:
+    def update_file_path(log_file_path: str, replace_auto: str = "", suffix: str="") -> str:
         dirname = os.path.dirname(log_file_path)
         if dirname:
             if os.path.isabs(dirname):
@@ -38,6 +38,8 @@ def main(_args: argparse.Namespace):
             log_file_path = os.path.join(run_config.run_dir, log_file_path)
         os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
         if '{auto}' in log_file_path:
+            if replace_auto == "":
+                replace_auto = time.strftime('%Y%m%d_%H%M%S')
             log_file_path = log_file_path.replace('{auto}', replace_auto + f'_{suffix}')
         return log_file_path
 
@@ -47,9 +49,9 @@ def main(_args: argparse.Namespace):
                     f"_opt_{model_config.optimizer}_lrSche_{model_config.lr_scheduler}")
 
     if logger_config.get('log_file'):
-        logger_config['log_file'] = update_log_file_path(logger_config['log_file'], run_info_str, 'info')
+        logger_config['log_file'] = update_file_path(logger_config['log_file'], run_info_str, 'info')
     if logger_config.get('debug_file'):
-        logger_config['debug_file'] = update_log_file_path(logger_config['debug_file'], run_info_str, 'debug')
+        logger_config['debug_file'] = update_file_path(logger_config['debug_file'], run_info_str, 'debug')
 
     _logger = EnhancedLogger.from_config(logger_config).get_logger()
 
@@ -63,6 +65,17 @@ def main(_args: argparse.Namespace):
 
     tb_logger = TensorBoardLogger(save_dir=run_config.run_dir, name=f"TensorBoardLogs_{run_info_str}")
 
+    trainer_callbacks = []
+    if run_config.get("test_output"):
+        test_output = update_file_path(run_config.test_output, run_info_str)
+        test_output_callback = SaveTestOutputs(
+            data_cfg=data_config,
+            model_cfg=model_config,
+            run_cfg=run_config,
+            output_filepath=test_output
+        )
+        trainer_callbacks.append(test_output_callback)
+
     model = ModelModule(
         run_cfg=run_config,
         model_class=model_config.model,
@@ -75,10 +88,20 @@ def main(_args: argparse.Namespace):
         metrics=model_config.metrics,
     )
     # TODO: customized checkpoint callback (save ckpt to another place, not tb logger dir), model_summary callback.
-    trainer = L.Trainer(accelerator=run_config.device, devices=run_config.n_devices, deterministic=deterministic,
-                        default_root_dir=run_config.run_dir, enable_checkpointing=True, max_epochs=run_config.epochs,
-                        logger=tb_logger, precision= '16-mixed' if run_config.use_amp else '32', enable_progress_bar=True,
-                        enable_model_summary=True, inference_mode=True)
+    trainer = L.Trainer(
+        accelerator=run_config.device,
+        devices=run_config.n_devices,
+        deterministic=deterministic,
+        default_root_dir=run_config.run_dir,
+        enable_checkpointing=True,
+        max_epochs=run_config.epochs,
+        logger=tb_logger,
+        precision= '16-mixed' if run_config.use_amp else '32-true',
+        enable_progress_bar=True,
+        enable_model_summary=True,
+        inference_mode=True,
+        callbacks= trainer_callbacks,
+    )
 
     # TODO: cross-validation support
     train_file_paths = []
