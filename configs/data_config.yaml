@@ -22,6 +22,7 @@ new_variables:
   px: "pt * np.cos(phi)"
   py: "pt * np.sin(phi)"
   pz: "pt * np.sinh(eta)"
+  abs_weight: "np.abs(weight)"
 
 
 selection:
@@ -69,4 +70,4 @@ weights:
     - 1627.1133084735
     - 1.0
   vars:
-    - weight
+    - abs_weight

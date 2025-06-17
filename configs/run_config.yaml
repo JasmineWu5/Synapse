@@ -2,19 +2,21 @@ run_dir: 'local_test/run_1'  # Directory to save the run outputs
 
 run_mode: 'train'
 
-device: 'cpu'
+device: 'gpu' # 'cpu' or 'gpu'
 
 n_devices: 'auto'  # 'auto' for automatic detection, or specify a number
 
-epochs: 50
+epochs: 5
 
 start_epoch: 0
 
 batch_size: 512
 
-num_workers: 1
+num_workers: 5
 
 cross_validation: true
+
+#cross_validation_var: 'eventNumber'  # Variable to use for cross-validation
 
 k_folds: 3
 
@@ -24,5 +26,7 @@ logger_config:
 
 seed: 42
 use_amp: false
+
+test_output: 'test_output/output.root'  # Path to save test output file
 
 # export_onnx: 'model.onnx' # not supported yet

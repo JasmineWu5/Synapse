@@ -44,13 +44,20 @@ lr_scheduler: "steps"
 
 metrics:
   Accuracy:
-    function: torchmetrics.classification.Accuracy
-    params:
-      task: 'multiclass'
-      num_classes: 2
+    function: core.metrics.weighted_accuracy
+    stages: ['train', 'val', 'test']
+    is_reference: True
+    on_step: true
+    on_epoch: true
   AUC:
-    function: torchmetrics.classification.AUROC
-    params:
-      task: 'multiclass'
-      num_classes: 2
+    function: core.metrics.weighted_auc_2cls
+    stages: ['val', 'test']
+    on_step: false
+    on_epoch: true
+  CM:
+    function: core.metrics.weighted_confusion_matrix_2cls
+    stages: ['val', 'test']
+    on_step: false
+    on_epoch: true
+
 
