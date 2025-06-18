@@ -46,7 +46,7 @@ def prepare_data(data: ak.Array, data_cfg: DataConfig, dataset_type: str) -> dic
         prepared_data[data_cfg.weight_key] = ak.to_numpy(data[data_cfg.weight_key]).astype(np.float32)
     if dataset_type == 'test':
         for k in data_cfg.spectators:
-            prepared_data[k] = ak.to_numpy(data[k])
+            prepared_data[k] = ak.to_numpy(data[k]).astype(np.float32) #FIXME: temp hack
 
     return prepared_data
 
