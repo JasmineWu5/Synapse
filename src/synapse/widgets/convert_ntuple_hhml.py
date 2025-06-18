@@ -1,4 +1,4 @@
-# a script to convert the CAF flat ntuple to a tabular format ROOT file
+# a script to convert the CAF flat ntuple to the format suitable for Synapse
 import argparse
 import glob
 import os
@@ -36,7 +36,7 @@ def load_config(config_path) -> dict:
 
 def convert(input_data: ak.Array, cfg: dict):
     """
-    Convert the input flat ntuple to a tabular format
+    Convert the input flat ntuple
     """
     output_data = {}
     for feat in cfg.get('object_variables', []):
@@ -62,7 +62,7 @@ def split_folds(input_data: ak.Array, cfg: dict) -> list[ak.Array]:
     return folds
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Convert ROOT file to tabular format")
+    parser = argparse.ArgumentParser(description="Convert ROOT file")
     parser.add_argument('--config', type=str, required=True, help='Configuration file path')
 
     args = parser.parse_args()
