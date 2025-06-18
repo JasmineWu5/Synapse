@@ -6,17 +6,24 @@ import glob
 import lightning as L
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from core.config import ConfigManager
-from core.logger import EnhancedLogger
-from core.model_module import ModelModule, SaveTestOutputs
-from core.data_module import DataModule
+from synapse.core.config import ConfigManager
+from synapse.core.logger import EnhancedLogger
+from synapse.core.model_module import ModelModule, SaveTestOutputs
+from synapse.core.data_module import DataModule
 
 
-def main(_args: argparse.Namespace):
+def main():
+    parser = argparse.ArgumentParser(description="Run Synapse")
+    parser.add_argument('--data_config', type=str, required=True, help='Data configuration file path')
+    parser.add_argument('--model_config', type=str, required=True, help='Model configuration file path')
+    parser.add_argument('--run_config', type=str, required=True, help='Run configuration file path')
+
+    args = parser.parse_args()
+    
     config_manager = ConfigManager(
-        data_cfg_file=_args.data_config,
-        model_cfg_file=_args.model_config,
-        run_cfg_file=_args.run_config
+        data_cfg_file=args.data_config,
+        model_cfg_file=args.model_config,
+        run_cfg_file=args.run_config
     )
     data_config = config_manager.data
     model_config = config_manager.model
@@ -133,10 +140,4 @@ def main(_args: argparse.Namespace):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Run Synapse")
-    parser.add_argument('--data_config', type=str, required=True, help='Data configuration file path')
-    parser.add_argument('--model_config', type=str, required=True, help='Model configuration file path')
-    parser.add_argument('--run_config', type=str, required=True, help='Run configuration file path')
-
-    args = parser.parse_args()
-    main(args)
+    main()

@@ -7,8 +7,8 @@ from pathlib import Path
 import awkward as ak
 import yaml
 
-from core.fileio import read_files, write_file
-from core.tools import build_new_variables
+from synapse.core.fileio import read_files, write_file
+from synapse.core.tools import build_new_variables
 
 def load_config(config_path) -> dict:
     """

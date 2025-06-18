@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from types import NoneType
 from typing import Dict, Any, Type, List
 
-from core.tools import flatten_nested_list
+from synapse.core.tools import flatten_nested_list
 
 class ConfigBase(ABC):
     """

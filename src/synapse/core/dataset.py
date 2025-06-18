@@ -5,9 +5,9 @@ import awkward as ak
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
 
-from core.tools import apply_selection, build_new_variables, extract_fields_from_expr
-from core.fileio import read_files
-from core.config import DataConfig
+from synapse.core.tools import apply_selection, build_new_variables, extract_fields_from_expr
+from synapse.core.fileio import read_files
+from synapse.core.config import DataConfig
 
 _logger = logging.getLogger("SynapseLogger")
 

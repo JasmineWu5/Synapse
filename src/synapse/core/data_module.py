@@ -1,8 +1,8 @@
 import lightning as L
 import torch
 
-from core.config import DataConfig, RunConfig
-from core.dataset import MapStyleDataset #, HybridDataset
+from synapse.core.config import DataConfig, RunConfig
+from synapse.core.dataset import MapStyleDataset #, HybridDataset
 
 class DataModule(L.LightningDataModule):
     def __init__(

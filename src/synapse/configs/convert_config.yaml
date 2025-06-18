@@ -1,12 +1,12 @@
 in_file_paths:
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_hhml_ana_ggF_kl1_PhPy8EG.root
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_hhml_ana_VBF_kl1k2v1kv1_MGPy8EG.root
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_singleH.root
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_top.root
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_Vjets.root
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_VV.root
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_VVV.root
-  - local_test/CAF_ntuples/job_0423_2lSC/2lSC_Vy.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_hhml_ana_ggF_kl1_PhPy8EG.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_hhml_ana_VBF_kl1k2v1kv1_MGPy8EG.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_singleH.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_top.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_Vjets.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_VV.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_VVV.root
+  - /eos/home-s/shudong/workspace/HHML/Run3/HHMLAnalysisCode/output/ntuple/merged/CAF_ntuples/job_0423_2lSC/2lSC_Vy.root
 
 in_tree_name: sr
 merge_input: false
