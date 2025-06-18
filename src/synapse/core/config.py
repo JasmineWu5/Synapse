@@ -223,7 +223,7 @@ class DataConfig(ConfigBase):
 
         data = object.__getattribute__(self, '_data')
         # construct internal items
-        data['label_keys'] = list(data['labels'].values())
+        data['label_keys'] = flatten_nested_list(list(data['labels'].values()))
         data['active_keys'] = flatten_nested_list([
             *data['inputs'].values(),
             *data['label_keys'],
@@ -231,7 +231,7 @@ class DataConfig(ConfigBase):
         ])
 
         if data['spectators']:
-            data['spectators'] = data['spectators'].extend(data['label_keys'])
+            data['spectators'].extend(data['label_keys'])
         else:
             data['spectators'] = data['label_keys']
 
