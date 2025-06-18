@@ -1,11 +1,11 @@
 train_files:
-  - /Users/shudong/PycharmProjects/Synapse/local_test/output/*/fold_0.root
+  - ./output/*/fold_0.root
 
 val_files:
-  - /Users/shudong/PycharmProjects/Synapse/local_test/output/*/fold_1.root
+  - ./output/*/fold_1.root
 
 test_files:
-  - /Users/shudong/PycharmProjects/Synapse/local_test/output/*/fold_2.root
+  - ./output/*/fold_2.root
 
 train_load_range: [0.0, 1.0]
 train_normalized_range: true
@@ -23,10 +23,14 @@ new_variables:
   py: "pt * np.sin(phi)"
   pz: "pt * np.sinh(eta)"
   abs_weight: "np.abs(weight)"
+  log1p_HT_vis: "np.log1p(HT_vis)"
+  log1p_HT_lep: "np.log1p(HT_lep)"
+  log1p_HT_jet: "np.log1p(HT_jet)"
+  log1p_HT_lepMET: "np.log1p(HT_lepMET)"
+  log1p_HT_m_all: "np.log1p(m_all)"
 
 
 selection:
-
 
 inputs:
   obj_feats:
@@ -37,11 +41,11 @@ inputs:
     - pdg
     - charge
   evt_feats:
-    - HT_vis
-    - HT_lep
-    - HT_jet
-    - HT_lepMET
-    - m_all
+    - log1p_HT_vis
+    - log1p_HT_lep
+    - log1p_HT_jet
+    - log1p_HT_lepMET
+    - log1p_HT_m_all
     - dilep_type
   obj_4vecs:
     - px
@@ -67,7 +71,7 @@ spectators:
 weights:
   balance_weights: true
   weight_balance_factors:  # corresponds to the order of the categorical labels
-    - 1627.1133084735
+    - 1710.4
     - 1.0
   vars:
     - abs_weight

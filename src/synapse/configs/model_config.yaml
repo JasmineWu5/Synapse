@@ -17,7 +17,10 @@ model_params:
     'dropout': 0
     'attn_dropout': 0
     'activation_dropout': 0
-  fc_params: []
+  fc_params: 
+    - [32,0]
+    - [128,0]
+    - [32,0]
   activation: 'gelu'
   trim: True
   for_inference: False
