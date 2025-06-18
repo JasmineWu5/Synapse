@@ -696,7 +696,7 @@ class ParticleTransformerGlobalFeat(nn.Module):
                  num_cls_layers=2,
                  block_params=None,
                  cls_block_params={'dropout': 0, 'attn_dropout': 0, 'activation_dropout': 0},
-                 fc_params=[],
+                 fc_params=[[64,0], [256,0], [64,0]],
                  activation='gelu',
                  # misc
                  trim=True,
@@ -738,7 +738,7 @@ class ParticleTransformerGlobalFeat(nn.Module):
 
         if fc_params is not None:
             fcs = []
-            in_dim = embed_dim
+            in_dim = 2*embed_dim
             for out_dim, drop_rate in fc_params:
                 fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
                 in_dim = out_dim
@@ -788,8 +788,9 @@ class ParticleTransformerGlobalFeat(nn.Module):
             for block in self.cls_blocks:
                 cls_tokens = block(x, x_cls=cls_tokens, x_glob=g, padding_mask=padding_mask)
 
-            x_cls = self.norm(cls_tokens).squeeze(0)
-
+            x_cls = self.norm(cls_tokens).squeeze(0) # (N, C)
+            g = g.squeeze(0)
+            x_cls = torch.cat((x_cls, g), dim=1)
             # fc
             if self.fc is None:
                 return x_cls
