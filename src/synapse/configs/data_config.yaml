@@ -36,6 +36,13 @@ inputs:
     - log1p_e
     - pdg
     - charge
+  evt_feats:
+    - HT_vis
+    - HT_lep
+    - HT_jet
+    - HT_lepMET
+    - m_all
+    - dilep_type
   obj_4vecs:
     - px
     - py
@@ -43,13 +50,6 @@ inputs:
     - e
   mask:
     - valid
-#  evt_feats:
-#    - HT_vis
-#    - HT_lep
-#    - HT_jet
-#    - HT_lepMET
-#    - m_all
-#    - dilep_type
 
 
 labels:
