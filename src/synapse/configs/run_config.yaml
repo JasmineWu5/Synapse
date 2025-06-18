@@ -1,6 +1,6 @@
 run_dir: 'local_test/run_1'  # Directory to save the run outputs
 
-run_mode: 'train'
+run_mode: ['train', 'test']
 
 device: 'gpu' # 'cpu' or 'gpu'
 

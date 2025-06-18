@@ -354,7 +354,7 @@ class RunConfig(ConfigBase):
 
     TYPE_HINTS = {
         'run_dir': str,
-        'run_mode': str,
+        'run_mode': list,
         'device': str,
         'n_devices': (int, list, str),
         'epochs': int,
@@ -400,9 +400,6 @@ class RunConfig(ConfigBase):
         self._data.setdefault('export_onnx', None)
 
         # Validate values
-        if self._data['run_mode'] not in ['train', 'test']:
-            errors.append(f"Invalid run mode: {self._data['run_mode']}. Must be 'train' or 'test'.")
-
         if self._data['epochs'] < 1:
             errors.append(f"Epochs must be >= 1, got {self._data['epochs']}")
 

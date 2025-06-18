@@ -129,11 +129,11 @@ def main():
         test_file_list=test_file_paths
     )
 
-    if run_config.run_mode == 'train':
+    if 'train' in run_config.run_mode:
         _logger.info("Running in training mode...")
         data_module.setup('fit')
         trainer.fit(model=model, datamodule=data_module)
-    elif run_config.run_mode == 'test':
+    if 'test' in run_config.run_mode:
         _logger.info("Running in test mode...")
         trainer.test(model=model, datamodule=data_module)
     #TODO: checkpoint loading support
