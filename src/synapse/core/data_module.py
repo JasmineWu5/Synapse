@@ -56,7 +56,7 @@ class DataModule(L.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.val_dataset,
             batch_size=self.run_cfg.batch_size,
-            num_workers=min(self.run_cfg.num_workers, len(self.train_dataset)),
+            num_workers=min(self.run_cfg.num_workers, len(self.val_dataset)),
             pin_memory=True,
             persistent_workers=True,
             shuffle = False,
@@ -66,7 +66,7 @@ class DataModule(L.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.test_dataset,
             batch_size=self.run_cfg.batch_size,
-            num_workers=min(self.run_cfg.num_workers, len(self.train_dataset)),
+            num_workers=min(self.run_cfg.num_workers, len(self.test_dataset)),
             pin_memory=True,
             persistent_workers=True,
             shuffle=False,
