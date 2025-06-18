@@ -1,14 +1,14 @@
-model: models.ParticleTransformer.ParticleTransformer
+model: synapse.models.ParticleTransformer.ParticleTransformer
 
 model_params:
   input_dim: 6
   num_classes: 2
   pair_input_dim: 4
   use_pre_activation_pair: false
-  embed_dims: [64, 256, 64]
-  pair_embed_dims: [32, 32, 32]
-  num_heads: 4
-  num_layers: 4
+  embed_dims: [32, 128, 32]
+  pair_embed_dims: [16, 16, 16]
+  num_heads: 2
+  num_layers: 2
   num_cls_layers: 1
   block_params: null
   cls_block_params:
@@ -29,7 +29,7 @@ validation_step_function:
 test_step_function:
 
 loss_function:
-  name: loss_functions.loss.CrossEntropyLossWeighted
+  name: synapse.loss_functions.loss.CrossEntropyLossWeighted
   params:
 
 start_lr: 0.001
@@ -44,18 +44,18 @@ lr_scheduler: "steps"
 
 metrics:
   Accuracy:
-    function: core.metrics.weighted_accuracy
+    function: synapse.core.metrics.weighted_accuracy
     stages: ['train', 'val', 'test']
     is_reference: True
     on_step: true
     on_epoch: true
   AUC:
-    function: core.metrics.weighted_auc_2cls
+    function: synapse.core.metrics.weighted_auc
     stages: ['val', 'test']
     on_step: false
     on_epoch: true
   CM:
-    function: core.metrics.weighted_confusion_matrix_2cls
+    function: synapse.core.metrics.weighted_confusion_matrix
     stages: ['val', 'test']
     on_step: false
     on_epoch: true
