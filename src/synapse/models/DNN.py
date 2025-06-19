@@ -6,12 +6,14 @@ class DNN(nn.Module):
         super(DNN, self).__init__()
 
         layers = []
-        
+        layers.append(nn.BatchNorm1d(input_dim))
         layers.append(nn.Linear(input_dim, hidden_dims[0]))
         layers.append(nn.ReLU())
+        layers.append(nn.BatchNorm1d(hidden_dims[0]))
         
         for i in range(len(hidden_dims) - 1):
             layers.append(nn.Linear(hidden_dims[i], hidden_dims[i+1]))
+            layers.append(nn.BatchNorm1d(hidden_dims[i+1]))
             layers.append(nn.ReLU())
         
         layers.append(nn.Linear(hidden_dims[-1], num_classes))
