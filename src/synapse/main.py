@@ -63,6 +63,10 @@ def main():
     _logger = EnhancedLogger.from_config(logger_config).get_logger()
 
     _logger.info("Starting Synapse...")
+    if logger_config.get('log_file'):
+        _logger.info("Writing logs to file: %s", logger_config['log_file'])
+    if logger_config.get('debug_file'):
+        _logger.debug("Writing debug logs to file: %s", logger_config['debug_file'])
 
     deterministic = False
     if run_config.seed:
@@ -99,6 +103,7 @@ def main():
         accelerator=run_config.device,
         devices=run_config.n_devices,
         deterministic=deterministic,
+        num_sanity_val_steps=2 if run_config.val_sanity_check else 0,
         default_root_dir=run_config.run_dir,
         enable_checkpointing=True,
         max_epochs=run_config.epochs,

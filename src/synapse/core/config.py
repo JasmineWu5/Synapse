@@ -361,6 +361,7 @@ class RunConfig(ConfigBase):
         'start_epoch': int,
         'batch_size': int,
         'num_workers': int,
+        'val_sanity_check': bool,
         'cross_validation': (bool, NoneType),
         'cross_validation_var': (str, NoneType),
         'k_folds': (int, NoneType),
@@ -391,6 +392,7 @@ class RunConfig(ConfigBase):
         self._data.setdefault('n_devices', 'auto')
         self._data.setdefault('start_epoch', 0)
         self._data.setdefault('num_workers', 1)
+        self._data.setdefault('val_sanity_check', False)
         self._data.setdefault('cross_validation', None)
         self._data.setdefault('cross_validation_var', None)
         self._data.setdefault('k_folds', None)
