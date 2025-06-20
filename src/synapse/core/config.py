@@ -194,9 +194,9 @@ class DataConfig(ConfigBase):
     """
 
     TYPE_HINTS = {
-        'train_files': list,
-        'val_files': list,
-        'test_files': list,
+        'train_files': (list, NoneType),
+        'val_files': (list, NoneType),
+        'test_files': (list, NoneType),
         'train_load_range': (list, NoneType),
         'val_load_range': (list, NoneType),
         'test_load_range': (list, NoneType),
@@ -292,6 +292,15 @@ class DataConfig(ConfigBase):
         errors.extend(self._check_types())
 
         # Auto-set sensible defaults for missing optional values
+        self._data.setdefault('train_files', None)
+        self._data.setdefault('val_files', None)
+        self._data.setdefault('test_files', None)
+        if self._data['train_files'] is None:
+            self._data['train_files'] = []
+        if self._data['val_files'] is None:
+            self._data['val_files'] = []
+        if self._data['test_files'] is None:
+            self._data['test_files'] = []
         self._data.setdefault('spectators', None)
         self._data.setdefault('weights', None)
         self._data.setdefault('selection', None)

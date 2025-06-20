@@ -12,6 +12,22 @@ from synapse.core.model_module import ModelModule, SaveTestOutputs
 from synapse.core.data_module import DataModule
 
 
+def update_file_path(run_dir, log_file_path: str, replace_auto: str = "", suffix: str = "") -> str:
+    dirname = os.path.dirname(log_file_path)
+    if dirname:
+        if os.path.isabs(dirname):
+            log_file_path = log_file_path
+        else:
+            log_file_path = os.path.join(run_dir, log_file_path)
+    else:
+        log_file_path = os.path.join(run_dir, log_file_path)
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    if '{auto}' in log_file_path:
+        if replace_auto == "":
+            replace_auto = time.strftime('%Y%m%d_%H%M%S')
+        log_file_path = log_file_path.replace('{auto}', replace_auto + f'_{suffix}')
+    return log_file_path
+
 def main():
     parser = argparse.ArgumentParser(description="Run Synapse")
     parser.add_argument('--data_config', type=str, required=True, help='Data configuration file path')
@@ -34,21 +50,7 @@ def main():
     # Initialize the logger
     logger_config = run_config.logger_config
 
-    def update_file_path(log_file_path: str, replace_auto: str = "", suffix: str="") -> str:
-        dirname = os.path.dirname(log_file_path)
-        if dirname:
-            if os.path.isabs(dirname):
-                log_file_path = log_file_path
-            else:
-                log_file_path = os.path.join(run_config.run_dir, log_file_path)
-        else:
-            log_file_path = os.path.join(run_config.run_dir, log_file_path)
-        os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-        if '{auto}' in log_file_path:
-            if replace_auto == "":
-                replace_auto = time.strftime('%Y%m%d_%H%M%S')
-            log_file_path = log_file_path.replace('{auto}', replace_auto + f'_{suffix}')
-        return log_file_path
+
 
     run_info_str = (f"{time.strftime('%Y%m%d_%H%M%S')}_{model_config.model.split('.')[-1]}"
                     f"_epochs{run_config.epochs}_start{run_config.start_epoch}"
@@ -56,9 +58,9 @@ def main():
                     f"_opt_{model_config.optimizer}_lrSche_{model_config.lr_scheduler}")
 
     if logger_config.get('log_file'):
-        logger_config['log_file'] = update_file_path(logger_config['log_file'], run_info_str, 'info')
+        logger_config['log_file'] = update_file_path(run_config.run_dir, logger_config['log_file'], run_info_str, 'info')
     if logger_config.get('debug_file'):
-        logger_config['debug_file'] = update_file_path(logger_config['debug_file'], run_info_str, 'debug')
+        logger_config['debug_file'] = update_file_path(run_config.run_dir, logger_config['debug_file'], run_info_str, 'debug')
 
     _logger = EnhancedLogger.from_config(logger_config).get_logger()
 
@@ -78,7 +80,7 @@ def main():
 
     trainer_callbacks = []
     if run_config.get("test_output"):
-        test_output = update_file_path(run_config.test_output, run_info_str)
+        test_output = update_file_path(run_config.run_dir, run_config.test_output, run_info_str)
         test_output_callback = SaveTestOutputs(
             data_cfg=data_config,
             model_cfg=model_config,
@@ -116,32 +118,88 @@ def main():
     )
 
     # TODO: cross-validation support
-    train_file_paths = []
-    for file_path in data_config.train_files:
-        train_file_paths.extend(glob.glob(file_path))
-    val_file_paths = []
-    for file_path in data_config.val_files:
-        val_file_paths.extend(glob.glob(file_path))
-    test_file_paths = []
-    for file_path in data_config.test_files:
-        test_file_paths.extend(glob.glob(file_path))
+    if run_config.cross_validation:
+        _logger.info("Starting cross validation...")
+        if run_config.k_folds is None:
+            raise ValueError("k_folds is not specified in run configuration, cannot perform cross-validation.")
+        _logger.info("Cross-validation with %d folds.", run_config.k_folds)
+        if run_config.cross_validation_var:
+            pass
+        else: # very inflexible way, if no cross-validation variable is specified.
+            _logger.info("No cross-validation variable specified.")
+            _logger.info("Checking if all folds ('fold_X' in file name) are present in the dataset...")
+            file_paths = []
+            file_paths.extend(data_config.train_files)
+            file_paths.extend(data_config.val_files)
+            file_paths.extend(data_config.test_files)
+            file_paths = [filepath for path_pattern in file_paths for filepath in glob.glob(path_pattern)]
+            k_folds = run_config.k_folds
+            for i in range(k_folds):
+                if sum(f"fold_{i}" in file_path for file_path in file_paths) == 0:
+                    raise RuntimeError(f"No file found for fold {i}")
+            # Create a list of file paths for each fold
+            for i in range(k_folds):
+                train_file_paths = []
+                val_file_paths = []
+                test_file_paths = []
+                for file_path in file_paths:
+                    for j in range(k_folds-2):
+                        if f"fold_{(i+j)%k_folds}" in file_path:
+                            train_file_paths.append(file_path)
+                    if f"fold_{(i+k_folds-2)%k_folds}" in file_path:
+                        val_file_paths.append(file_path)
+                    if f"fold_{(i+k_folds-1)%k_folds}" in file_path:
+                        test_file_paths.append(file_path)
+                _logger.info(f"Fold {i}:")
+                _logger.info(f"{len(train_file_paths)} Train files: {train_file_paths}")
+                _logger.info(f"{len(val_file_paths)} Validation files: {val_file_paths}")
+                _logger.info(f"{len(test_file_paths)} Test files: {test_file_paths}")
 
-    data_module = DataModule(
-        data_cfg=data_config,
-        run_cfg=run_config,
-        train_file_list=train_file_paths,
-        val_file_list=val_file_paths,
-        test_file_list=test_file_paths
-    )
+                data_module = DataModule(
+                    data_cfg=data_config,
+                    run_cfg=run_config,
+                    train_file_list=train_file_paths,
+                    val_file_list=val_file_paths,
+                    test_file_list=test_file_paths
+                )
 
-    if 'train' in run_config.run_mode:
-        _logger.info("Running in training mode...")
-        data_module.setup('fit')
-        trainer.fit(model=model, datamodule=data_module)
-    if 'test' in run_config.run_mode:
-        _logger.info("Running in test mode...")
-        trainer.test(model=model, datamodule=data_module)
-    #TODO: checkpoint loading support
+                if 'train' in run_config.run_mode:
+                    _logger.info("Running in training mode...")
+                    data_module.setup('fit')
+                    trainer.fit(model=model, datamodule=data_module)
+                if 'test' in run_config.run_mode:
+                    _logger.info("Running in test mode...")
+                    trainer.test(model=model, datamodule=data_module)
+    else:
+        train_file_paths = []
+        val_file_paths = []
+        test_file_paths = []
+        for file_path in data_config.train_files:
+            train_file_paths.extend(glob.glob(file_path))
+        for file_path in data_config.val_files:
+            val_file_paths.extend(glob.glob(file_path))
+        for file_path in data_config.test_files:
+            test_file_paths.extend(glob.glob(file_path))
+        _logger.info(f"{len(train_file_paths)} Train files: {train_file_paths}")
+        _logger.info(f"{len(val_file_paths)} Validation files: {val_file_paths}")
+        _logger.info(f"{len(test_file_paths)} Test files: {test_file_paths}")
+
+        data_module = DataModule(
+            data_cfg=data_config,
+            run_cfg=run_config,
+            train_file_list=train_file_paths,
+            val_file_list=val_file_paths,
+            test_file_list=test_file_paths
+        )
+
+        if 'train' in run_config.run_mode:
+            _logger.info("Running in training mode...")
+            data_module.setup('fit')
+            trainer.fit(model=model, datamodule=data_module)
+        if 'test' in run_config.run_mode:
+            _logger.info("Running in test mode...")
+            trainer.test(model=model, datamodule=data_module)
+        #TODO: checkpoint loading support
 
 
 if __name__ == '__main__':
