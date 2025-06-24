@@ -28,6 +28,27 @@ def update_file_path(run_dir, log_file_path: str, replace_auto: str = "", suffix
         log_file_path = log_file_path.replace('{auto}', replace_auto + f'_{suffix}')
     return log_file_path
 
+def train(trainer, model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths,_logger):
+    _logger.info(f"{len(train_file_paths)} Train files: {train_file_paths}")
+    _logger.info(f"{len(val_file_paths)} Validation files: {val_file_paths}")
+    _logger.info(f"{len(test_file_paths)} Test files: {test_file_paths}")
+
+    data_module = DataModule(
+        data_cfg=data_config,
+        run_cfg=run_config,
+        train_file_list=train_file_paths,
+        val_file_list=val_file_paths,
+        test_file_list=test_file_paths
+    )
+
+    if 'train' in run_config.run_mode:
+        _logger.info("Running in training mode...")
+        data_module.setup('fit')
+        trainer.fit(model=model, datamodule=data_module)
+    if 'test' in run_config.run_mode:
+        _logger.info("Running in test mode...")
+        trainer.test(model=model, datamodule=data_module)
+
 def main():
     parser = argparse.ArgumentParser(description="Run Synapse")
     parser.add_argument('--data_config', type=str, required=True, help='Data configuration file path')
@@ -49,8 +70,6 @@ def main():
 
     # Initialize the logger
     logger_config = run_config.logger_config
-
-
 
     run_info_str = (f"{time.strftime('%Y%m%d_%H%M%S')}_{model_config.model.split('.')[-1]}"
                     f"_epochs{run_config.epochs}_start{run_config.start_epoch}"
@@ -75,6 +94,8 @@ def main():
         L.seed_everything(run_config.seed, workers=True, verbose=False)
         _logger.info(f"Set random seed to {run_config.seed}")
         deterministic = True
+    else:
+        _logger.info("No random seed specified")
 
     tb_logger = TensorBoardLogger(save_dir=run_config.run_dir, name=f"TensorBoardLogs_{run_info_str}")
 
@@ -150,26 +171,8 @@ def main():
                         val_file_paths.append(file_path)
                     if f"fold_{(i+k_folds-1)%k_folds}" in file_path:
                         test_file_paths.append(file_path)
-                _logger.info(f"Fold {i}:")
-                _logger.info(f"{len(train_file_paths)} Train files: {train_file_paths}")
-                _logger.info(f"{len(val_file_paths)} Validation files: {val_file_paths}")
-                _logger.info(f"{len(test_file_paths)} Test files: {test_file_paths}")
-
-                data_module = DataModule(
-                    data_cfg=data_config,
-                    run_cfg=run_config,
-                    train_file_list=train_file_paths,
-                    val_file_list=val_file_paths,
-                    test_file_list=test_file_paths
-                )
-
-                if 'train' in run_config.run_mode:
-                    _logger.info("Running in training mode...")
-                    data_module.setup('fit')
-                    trainer.fit(model=model, datamodule=data_module)
-                if 'test' in run_config.run_mode:
-                    _logger.info("Running in test mode...")
-                    trainer.test(model=model, datamodule=data_module)
+                _logger.info(f"======= Fold {i} =======")
+                train(trainer, model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger)
     else:
         train_file_paths = []
         val_file_paths = []
@@ -180,25 +183,7 @@ def main():
             val_file_paths.extend(glob.glob(file_path))
         for file_path in data_config.test_files:
             test_file_paths.extend(glob.glob(file_path))
-        _logger.info(f"{len(train_file_paths)} Train files: {train_file_paths}")
-        _logger.info(f"{len(val_file_paths)} Validation files: {val_file_paths}")
-        _logger.info(f"{len(test_file_paths)} Test files: {test_file_paths}")
-
-        data_module = DataModule(
-            data_cfg=data_config,
-            run_cfg=run_config,
-            train_file_list=train_file_paths,
-            val_file_list=val_file_paths,
-            test_file_list=test_file_paths
-        )
-
-        if 'train' in run_config.run_mode:
-            _logger.info("Running in training mode...")
-            data_module.setup('fit')
-            trainer.fit(model=model, datamodule=data_module)
-        if 'test' in run_config.run_mode:
-            _logger.info("Running in test mode...")
-            trainer.test(model=model, datamodule=data_module)
+        train(trainer, model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger)
         #TODO: checkpoint loading support
 
 
