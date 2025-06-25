@@ -51,9 +51,9 @@ def train(trainer, model, data_config, run_config, train_file_paths, val_file_pa
 
 def main():
     parser = argparse.ArgumentParser(description="Run Synapse")
-    parser.add_argument('--data_config', type=str, required=True, help='Data configuration file path')
-    parser.add_argument('--model_config', type=str, required=True, help='Model configuration file path')
-    parser.add_argument('--run_config', type=str, required=True, help='Run configuration file path')
+    parser.add_argument('-d', '--data_config', type=str, required=True, help='Data configuration file path')
+    parser.add_argument('-m', '--model_config', type=str, required=True, help='Model configuration file path')
+    parser.add_argument('-r', '--run_config', type=str, required=True, help='Run configuration file path')
 
     args = parser.parse_args()
     
