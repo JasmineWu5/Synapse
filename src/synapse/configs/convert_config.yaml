@@ -14,6 +14,7 @@ merge_input: false
 output_dir: local_test/output
 out_tree_name: sr
 k_folds: 3
+fold_splitting_var: eventNumber
 
 new_variables:
   label_signal: "np.isin(dsid, [600862, 600853, 600854, 600855, 600856, 600857, 600858])"

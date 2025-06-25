@@ -10,6 +10,11 @@ import yaml
 from synapse.core.fileio import read_files, write_file
 from synapse.core.tools import build_new_variables
 
+def valid_config(path):
+    if not os.path.isfile(path):
+        raise argparse.ArgumentTypeError(f"File not found: {path}")
+    return path
+
 def load_config(config_path) -> dict:
     """
     Load the configuration file and extract the branches to be used
@@ -52,22 +57,23 @@ def convert(input_data: ak.Array, cfg: dict):
 
     return output_data
 
-def split_folds(input_data: ak.Array, cfg: dict) -> list[ak.Array]:
+def split_folds(input_data: ak.Array, cfg: dict, fold_splitting_var: str) -> list[ak.Array]:
     """
     Split the data into folds
     """
-    remainders = input_data.eventNumber % cfg.get('k_folds', 1) # FIXME: hardcoded to eventNumber, need to improve flexibility
+    remainders = input_data[fold_splitting_var] % cfg.get('k_folds', 1)
     folds = [input_data[remainders == r] for r in range(cfg.get('k_folds', 1))]
 
     return folds
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Convert ROOT file")
-    parser.add_argument('--config', type=str, required=True, help='Configuration file path')
+    parser.add_argument('-c','--config', type=str, required=True, help='Configuration file path')
 
     args = parser.parse_args()
+    config_path = valid_config(args.config)
 
-    config = load_config(args.config)
+    config = load_config(config_path)
 
     in_file_paths = []
     for file_path in config.get('in_file_paths', []):
@@ -81,7 +87,7 @@ if __name__ == "__main__":
     if config.get('merge_input'):
         data_out = convert(data_in, config)
         if config.get('k_folds', 1) > 1:
-            data_out_folds = split_folds(data_out, config)
+            data_out_folds = split_folds(data_out, config, config.get('fold_splitting_var', 'eventNumber'))
             for i, fold in enumerate(data_out_folds):
                 file_path_out = os.path.join(config['output_dir'], "merged" ,f"fold_{i}.root")
                 write_file(file_path_out, fold, tree_name=config.get('out_tree_name', 'tree'))
@@ -94,7 +100,7 @@ if __name__ == "__main__":
             data_out.append(convert(data, config))
         if config.get('k_folds', 1) > 1:
             for i, data in enumerate(data_out):
-                data_folds = split_folds(data, config)
+                data_folds = split_folds(data, config, config.get('fold_splitting_var', 'eventNumber'))
                 for j, fold in enumerate(data_folds):
                     sub_dir_name = Path(file_names_in[i]).stem
                     file_path_out = os.path.join(config['output_dir'], sub_dir_name ,f"fold_{j}.root")
@@ -105,6 +111,8 @@ if __name__ == "__main__":
                 file_path_out = os.path.join(config['output_dir'], sub_dir_name ,f"merged_total.root")
                 write_file(file_path_out, data, tree_name=config.get('out_tree_name', 'tree'))
 
+if __name__ == "__main__":
+    main()
 
 
 
