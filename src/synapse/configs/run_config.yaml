@@ -6,13 +6,15 @@ device: 'gpu' # 'cpu' or 'gpu'
 
 n_devices: 'auto'  # 'auto' for automatic detection, or specify a number
 
-epochs: 5
+epochs: 3
 
 start_epoch: 0
 
-batch_size: 512
+batch_size: 1024
 
 num_workers: 5
+
+val_sanity_check: false  # Set to true to run a 2 batch sanity check on validation data
 
 cross_validation: true
 
@@ -27,6 +29,6 @@ logger_config:
 seed: 42
 use_amp: false
 
-test_output: 'test_output/output.root'  # Path to save test output file
+test_output: 'test_output/output_{auto}.root'  # Path to save test output file
 
 # export_onnx: 'model.onnx' # not supported yet
