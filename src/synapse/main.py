@@ -8,7 +8,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 from synapse.core.config import ConfigManager
 from synapse.core.logger import EnhancedLogger
-from synapse.core.model_module import ModelModule, SaveTestOutputs
+from synapse.core.model_module import ModelModule, SaveTestOutputs, SaveONNX
 from synapse.core.data_module import DataModule
 
 
@@ -109,6 +109,16 @@ def main():
             output_filepath=test_output
         )
         trainer_callbacks.append(test_output_callback)
+    
+    if run_config.get("onnx_path"):
+        onnx_path = update_file_path(run_config.run_dir, run_config.onnx_path, run_info_str)
+        onnx_callback = SaveONNX(
+            data_cfg=data_config,
+            model_cfg=model_config,
+            run_cfg=run_config,
+            onnx_path=onnx_path
+        )
+        trainer_callbacks.append(onnx_callback)
 
     model = ModelModule(
         run_cfg=run_config,

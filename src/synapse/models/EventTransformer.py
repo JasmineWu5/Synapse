@@ -47,37 +47,37 @@ class EventTransformer(nn.Module):
             nn.Linear(32, 2),
         )
 
-def forward(self, x, g, v, mask):
-    # x: (N, 6, P)  v: (N, 4, P)  mask: (N, 1, P)
-    # Permute to (N, P, *) for transformer (treat particles as sequence)
-    N, _, P = x.shape
-    x = x.permute(0, 2, 1)  # (N, P, 6)
-    v = v.permute(0, 2, 1)  # (N, P, 4)
-    inp = torch.cat([x, v], dim=-1)  # (N, P, 10)
-    inp = self.input_proj(inp)  # (N, P, d)
+    def forward(self, x, g, v, mask):
+        # x: (N, 6, P)  v: (N, 4, P)  mask: (N, 1, P)
+        # Permute to (N, P, *) for transformer (treat particles as sequence)
+        N, _, P = x.shape
+        x = x.permute(0, 2, 1)  # (N, P, 6)
+        v = v.permute(0, 2, 1)  # (N, P, 4)
+        inp = torch.cat([x, v], dim=-1)  # (N, P, 10)
+        inp = self.input_proj(inp)  # (N, P, d)
 
-    # Add position embedding
-    pos_ids = torch.arange(P, device=x.device).unsqueeze(0).expand(N, P)  # (N, P)
-    pos_emb = self.position_embedding(pos_ids)  # (N, P, embed_dim)
-    inp = inp + pos_emb
+        # Add position embedding
+        pos_ids = torch.arange(P, device=x.device).unsqueeze(0).expand(N, P)  # (N, P)
+        pos_emb = self.position_embedding(pos_ids)  # (N, P, embed_dim)
+        inp = inp + pos_emb
 
-    # Prepare mask for transformer: True for padding (so invert mask)
-    # mask: (N, 1, P) -> (N, P)
-    pad_mask = (mask.squeeze(1) == 0)  # (N, P)
-    transformer_out = self.transformer(inp, src_key_padding_mask=pad_mask)  # (N, P, d)
+        # Prepare mask for transformer: True for padding (so invert mask)
+        # mask: (N, 1, P) -> (N, P)
+        pad_mask = (mask.squeeze(1) == 0)  # (N, P)
+        transformer_out = self.transformer(inp, src_key_padding_mask=pad_mask)  # (N, P, d)
 
-    # Masked mean pooling over particles
-    mask_float = mask.squeeze(1).float()  # (N, P)
-    masked_sum = torch.sum(transformer_out * mask_float.unsqueeze(-1), dim=1)
-    num_real = torch.sum(mask_float, dim=1, keepdim=True) + 1e-6
-    pooled = masked_sum / num_real  # (N, d)
+        # Masked mean pooling over particles
+        mask_float = mask.squeeze(1).float()  # (N, P)
+        masked_sum = torch.sum(transformer_out * mask_float.unsqueeze(-1), dim=1)
+        num_real = torch.sum(mask_float, dim=1, keepdim=True) + 1e-6
+        pooled = masked_sum / num_real  # (N, d)
 
-    # Normalize global features
-    g = self.global_proj(g)
+        # Normalize global features
+        g = self.global_proj(g)
 
-    # Concatenate pooled per-particle features and global features
-    features = torch.cat([pooled, g], dim=1)  # (N, d + global_dim)
+        # Concatenate pooled per-particle features and global features
+        features = torch.cat([pooled, g], dim=1)  # (N, d + global_dim)
 
-    # Classifier
-    out = self.classifier(features)  # (N, 1)
-    return out
+        # Classifier
+        out = self.classifier(features)  # (N, 1)
+        return out
