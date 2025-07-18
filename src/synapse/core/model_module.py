@@ -125,12 +125,8 @@ class SaveONNX(L.Callback):
             dummy_input,
             self.onnx_path,
             export_params=True,
-            # opset_version=21,  # Adjust if needed
-            # do_constant_folding=True,
-            # input_names=['input'],
-            # output_names=['output'],
         )
-        _logger.info(f"Model saved to {onnx_path}")
+        _logger.info(f"Model saved to {self.onnx_path}")
 
 class ModelModule(L.LightningModule):
     def __init__(
