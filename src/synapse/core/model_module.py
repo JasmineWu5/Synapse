@@ -86,6 +86,48 @@ class SaveTestOutputs(L.Callback):
 
         _logger.info(f"Test outputs saved to {self.output_filepath}.")
 
+class SaveONNX(L.Callback):
+    """
+    Callback to save test outputs after the test ends.
+    """
+    def __init__(self, data_cfg: DataConfig, model_cfg: ModelConfig, run_cfg: RunConfig, onnx_path: str):
+        super().__init__()
+        self.test_outputs = []
+        self.data_cfg = data_cfg
+        self.model_cfg = model_cfg
+        self.run_cfg = run_cfg
+        self.onnx_path = onnx_path
+        if not self.onnx_path.endswith(".onnx"):
+            raise ValueError("ONNX filepath doesn't end with .onnx extension.")
+
+    def on_test_end(self, trainer, pl_module):
+        """
+        Save the model to ONNX format after the test ends.
+        """
+        _logger.info("Saving model to ONNX format...")
+        pl_module.eval()
+        model = pl_module.to('cpu')
+
+        dummy_input = []
+
+        for feat_name, feat_list in self.data_cfg.inputs.items():
+            feat_shape = None
+            if feat_name == "evt_feats":
+                feat_shape = (1, len(feat_list)) # e.g. (1, 10) for 10 event features
+            else:
+                feat_shape = (1, len(feat_list), 1) # e.g. (1, 6, 1) for 6 features per particle
+            dummy_input.append(torch.randn(feat_shape, dtype=torch.float32))
+        dummy_input = tuple(dummy_input)
+
+        # Export to ONNX
+        torch.onnx.export(
+            model,
+            dummy_input,
+            self.onnx_path,
+            export_params=True,
+        )
+        _logger.info(f"Model saved to {self.onnx_path}")
+
 class ModelModule(L.LightningModule):
     def __init__(
             self,
