@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from . import transformer
 
 class EventTransformer(nn.Module):
     def __init__(self, num_particles=128, embed_dim=128, global_dim=10,
@@ -24,13 +25,13 @@ class EventTransformer(nn.Module):
         )
 
         # Transformer encoder
-        encoder_layer = nn.TransformerEncoderLayer(
+        encoder_layer = transformer.TransformerEncoderLayer(
             d_model=embed_dim,
             nhead=num_heads,
-            batch_first=True,  # Input: (batch, seq, feature)
+            # batch_first=True,  # Input: (batch, seq, feature)
             norm_first=True
         )
-        self.transformer = nn.TransformerEncoder(
+        self.transformer = transformer.TransformerEncoder(
             encoder_layer,
             num_layers=num_layers
         )
