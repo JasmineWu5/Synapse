@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from . import transformer
+import synapse.models.Transformer as Transformer
 
 class EventTransformer(nn.Module):
     def __init__(self, num_particles=128, embed_dim=128, global_dim=10,
@@ -25,13 +25,13 @@ class EventTransformer(nn.Module):
         )
 
         # Transformer encoder
-        encoder_layer = transformer.TransformerEncoderLayer(
+        encoder_layer = Transformer.TransformerEncoderLayer(
             d_model=embed_dim,
             nhead=num_heads,
             # batch_first=True,  # Input: (batch, seq, feature)
             norm_first=True
         )
-        self.transformer = transformer.TransformerEncoder(
+        self.transformer = Transformer.TransformerEncoder(
             encoder_layer,
             num_layers=num_layers
         )
