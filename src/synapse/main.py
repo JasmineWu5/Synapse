@@ -151,23 +151,37 @@ def main():
         metrics=model_config.metrics,
     )
 
-    # TODO: cross-validation support
     if run_config.cross_validation:
+        # TODO: modify the model checkpoint name, output file name, etc., according to fold number
         _logger.info("Starting cross validation...")
         if run_config.k_folds is None:
             raise ValueError("k_folds is not specified in run configuration, cannot perform cross-validation.")
-        _logger.info("Cross-validation with %d folds.", run_config.k_folds)
+        k_folds = run_config.k_folds
+        _logger.info("Cross-validation with %d folds.", k_folds)
+        _logger.info("Train/Val/Test files will be merged into a single list then split into folds...")
+        file_paths = []
+        file_paths.extend(data_config.train_files)
+        file_paths.extend(data_config.val_files)
+        file_paths.extend(data_config.test_files)
+        file_paths = [filepath for path_pattern in file_paths for filepath in glob.glob(path_pattern)]
         if run_config.cross_validation_var:
-            pass
+            cv_var = run_config.cross_validation_var
+            _logger.info(f"Cross-validation variable specified: {cv_var}")
+            if data_config.selection:
+                base_selection = f"({data_config.selection}) & "
+            else:
+                base_selection = ""
+            for i in range(k_folds):
+                data_config.train_selection = (f"{base_selection}({cv_var}%{k_folds} != {i}) & "
+                                                f"({cv_var}%{k_folds} != {(i+1)%k_folds})")
+                data_config.val_selection = f"{base_selection}({cv_var}%{k_folds} == {(i+1)%k_folds})"
+                data_config.test_selection = f"{base_selection}({cv_var}%{k_folds} == {i})"
+                _logger.info(f"======= Running Fold {i} of {k_folds} =======")
+                train(model, data_config, run_config, file_paths, file_paths, file_paths, _logger,
+                        trainer_callbacks, run_info_str)
         else: # very inflexible way, if no cross-validation variable is specified.
             _logger.info("No cross-validation variable specified.")
             _logger.info("Checking if all folds ('fold_X' in file name) are present in the dataset...")
-            file_paths = []
-            file_paths.extend(data_config.train_files)
-            file_paths.extend(data_config.val_files)
-            file_paths.extend(data_config.test_files)
-            file_paths = [filepath for path_pattern in file_paths for filepath in glob.glob(path_pattern)]
-            k_folds = run_config.k_folds
             for i in range(k_folds):
                 if sum(f"fold_{i}" in file_path for file_path in file_paths) == 0:
                     raise RuntimeError(f"No file found for fold {i}")
@@ -184,8 +198,9 @@ def main():
                         val_file_paths.append(file_path)
                     if f"fold_{(i+k_folds-1)%k_folds}" in file_path:
                         test_file_paths.append(file_path)
-                _logger.info(f"======= Fold {i} =======")
-                train(model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger, trainer_callbacks, run_info_str)
+                _logger.info(f"======= Running Fold {i} of {k_folds} =======")
+                train(model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger,
+                        trainer_callbacks, run_info_str)
     else:
         train_file_paths = []
         val_file_paths = []

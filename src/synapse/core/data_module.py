@@ -1,3 +1,5 @@
+import copy
+
 import lightning as L
 import torch
 
@@ -20,15 +22,22 @@ class DataModule(L.LightningDataModule):
         self.train_file_list = train_file_list
         self.val_file_list = val_file_list
         self.test_file_list = test_file_list
-        self.data_cfg = data_cfg
         self.run_cfg = run_cfg
+        self.train_data_cfg = copy.deepcopy(data_cfg)
+        self.val_data_cfg = copy.deepcopy(data_cfg)
+        self.test_data_cfg = copy.deepcopy(data_cfg)
+
+        if run_cfg.cross_validation and run_cfg.cross_validation_var:
+            self.train_data_cfg.selection = data_cfg.train_selection
+            self.val_data_cfg.selection = data_cfg.val_selection
+            self.test_data_cfg.selection = data_cfg.test_selection
 
     def setup(self, stage: str | None = None):
         if stage == "fit" or stage is None:
             self.train_dataset = MapStyleDataset(
                 self.train_file_list,
                 'train',
-                self.data_cfg
+                self.train_data_cfg
             )
             self.val_dataset = MapStyleDataset(
                 self.val_file_list,
