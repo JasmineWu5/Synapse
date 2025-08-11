@@ -28,10 +28,20 @@ def update_file_path(run_dir, log_file_path: str, replace_auto: str = "", suffix
         log_file_path = log_file_path.replace('{auto}', replace_auto + f'_{suffix}')
     return log_file_path
 
-def train(trainer, model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths,_logger):
+def train(model, data_config, run_config,
+          train_file_paths, val_file_paths, test_file_paths,
+          trainer_callbacks, _logger, run_info_str):
     _logger.info(f"{len(train_file_paths)} Train files: {train_file_paths}")
     _logger.info(f"{len(val_file_paths)} Validation files: {val_file_paths}")
     _logger.info(f"{len(test_file_paths)} Test files: {test_file_paths}")
+
+    deterministic = False
+    if run_config.seed:
+        L.seed_everything(run_config.seed, workers=True, verbose=False)
+        _logger.info(f"Set random seed to {run_config.seed}")
+        deterministic = True
+    else:
+        _logger.info("No random seed specified")
 
     data_module = DataModule(
         data_cfg=data_config,
@@ -39,6 +49,25 @@ def train(trainer, model, data_config, run_config, train_file_paths, val_file_pa
         train_file_list=train_file_paths,
         val_file_list=val_file_paths,
         test_file_list=test_file_paths
+    )
+
+    tb_logger = TensorBoardLogger(save_dir=run_config.run_dir, name=f"TensorBoardLogs_{run_info_str}")
+
+    # TODO: customized checkpoint callback (save ckpt to another place, not tb logger dir), model_summary callback.
+    trainer = L.Trainer(
+        accelerator=run_config.device,
+        devices=run_config.n_devices,
+        deterministic=deterministic,
+        num_sanity_val_steps=2 if run_config.val_sanity_check else 0,
+        default_root_dir=run_config.run_dir,
+        enable_checkpointing=True,
+        max_epochs=run_config.epochs,
+        logger=tb_logger,
+        precision= '16-mixed' if run_config.use_amp else '32-true',
+        enable_progress_bar=True,
+        enable_model_summary=True,
+        inference_mode=True,
+        callbacks= trainer_callbacks,
     )
 
     if 'train' in run_config.run_mode:
@@ -89,16 +118,6 @@ def main():
     if logger_config.get('debug_file'):
         _logger.debug("Writing debug logs to file: %s", logger_config['debug_file'])
 
-    deterministic = False
-    if run_config.seed:
-        L.seed_everything(run_config.seed, workers=True, verbose=False)
-        _logger.info(f"Set random seed to {run_config.seed}")
-        deterministic = True
-    else:
-        _logger.info("No random seed specified")
-
-    tb_logger = TensorBoardLogger(save_dir=run_config.run_dir, name=f"TensorBoardLogs_{run_info_str}")
-
     trainer_callbacks = []
     if run_config.get("test_output"):
         test_output = update_file_path(run_config.run_dir, run_config.test_output, run_info_str)
@@ -130,22 +149,6 @@ def main():
         start_lr=model_config.start_lr,
         lr_scheduler=model_config.lr_scheduler,
         metrics=model_config.metrics,
-    )
-    # TODO: customized checkpoint callback (save ckpt to another place, not tb logger dir), model_summary callback.
-    trainer = L.Trainer(
-        accelerator=run_config.device,
-        devices=run_config.n_devices,
-        deterministic=deterministic,
-        num_sanity_val_steps=2 if run_config.val_sanity_check else 0,
-        default_root_dir=run_config.run_dir,
-        enable_checkpointing=True,
-        max_epochs=run_config.epochs,
-        logger=tb_logger,
-        precision= '16-mixed' if run_config.use_amp else '32-true',
-        enable_progress_bar=True,
-        enable_model_summary=True,
-        inference_mode=True,
-        callbacks= trainer_callbacks,
     )
 
     # TODO: cross-validation support
@@ -182,7 +185,7 @@ def main():
                     if f"fold_{(i+k_folds-1)%k_folds}" in file_path:
                         test_file_paths.append(file_path)
                 _logger.info(f"======= Fold {i} =======")
-                train(trainer, model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger)
+                train(model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger, trainer_callbacks, run_info_str)
     else:
         train_file_paths = []
         val_file_paths = []
@@ -193,7 +196,7 @@ def main():
             val_file_paths.extend(glob.glob(file_path))
         for file_path in data_config.test_files:
             test_file_paths.extend(glob.glob(file_path))
-        train(trainer, model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger)
+        train(model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger, trainer_callbacks, run_info_str)
         #TODO: checkpoint loading support
 
 
