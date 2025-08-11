@@ -80,7 +80,10 @@ class SaveTestOutputs(L.Callback):
                 output[label_name] = labels[label_name]
                 output[label_name + "_pred"] = scores[:, n_classes + idx]
 
-        output["weights"] = weights
+        if self.data_cfg.get('weights', {}).get('balance_weights', False):
+            output["_balanced_weights"] = weights
+        else:
+            output["_weights"] = weights
         output.update(spectators)
         write_file(self.output_filepath, ak.Array(output))
 
