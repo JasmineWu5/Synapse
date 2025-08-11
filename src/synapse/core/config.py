@@ -43,14 +43,14 @@ class ConfigBase(ABC):
         """Enable unpickling for multiprocessing"""
         self.__dict__.update(state)
 
-    # def __setattr__(self, name: str, value: Any) -> None:
-    #     """
-    #     Set configuration values with validation
-    #     """
-    #     if name.startswith('_'):
-    #         super().__setattr__(name, value)
-    #     else:
-    #         self._validate_and_set(name, value)
+    def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Set configuration values with validation
+        """
+        if name.startswith('_'):
+            super().__setattr__(name, value)
+        else:
+            self._validate_and_set(name, value)
 
     def __contains__(self, key: str) -> bool:
         """
