@@ -24,8 +24,6 @@ cd Synapse
 pip install -e .
 ```
 
-I'm considering publishing this package to PyPI, but it will take some time.
-
 ### Usage
 
 #### For HHML analysis
