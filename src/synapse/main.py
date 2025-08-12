@@ -12,25 +12,25 @@ from synapse.core.model_module import ModelModule, SaveTestOutputs, SaveONNX
 from synapse.core.data_module import DataModule
 
 
-def update_file_path(run_dir, log_file_path: str, replace_auto: str = "", suffix: str = "") -> str:
-    dirname = os.path.dirname(log_file_path)
+def update_file_path(run_dir, file_path: str, replace_auto: str = "", suffix: str = "") -> str:
+    dirname = os.path.dirname(file_path)
     if dirname:
         if os.path.isabs(dirname):
-            log_file_path = log_file_path
+            updated_file_path = file_path
         else:
-            log_file_path = os.path.join(run_dir, log_file_path)
+            updated_file_path = os.path.join(run_dir, file_path)
     else:
-        log_file_path = os.path.join(run_dir, log_file_path)
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-    if '{auto}' in log_file_path:
+        updated_file_path = os.path.join(run_dir, file_path)
+    os.makedirs(os.path.dirname(updated_file_path), exist_ok=True)
+    if '{auto}' in updated_file_path:
         if replace_auto == "":
             replace_auto = time.strftime('%Y%m%d_%H%M%S')
-        log_file_path = log_file_path.replace('{auto}', replace_auto + f'_{suffix}')
-    return log_file_path
+        updated_file_path = updated_file_path.replace('{auto}', replace_auto + f'_{suffix}')
+    return updated_file_path
 
-def train(model, data_config, run_config,
+def train(model, model_config, data_config, run_config,
           train_file_paths, val_file_paths, test_file_paths,
-          trainer_callbacks, _logger, run_info_str):
+          _logger, run_info_str, path_suffix: str = ""):
     _logger.info(f"{len(train_file_paths)} Train files: {train_file_paths}")
     _logger.info(f"{len(val_file_paths)} Validation files: {val_file_paths}")
     _logger.info(f"{len(test_file_paths)} Test files: {test_file_paths}")
@@ -53,7 +53,28 @@ def train(model, data_config, run_config,
 
     tb_logger = TensorBoardLogger(save_dir=run_config.run_dir, name=f"TensorBoardLogs_{run_info_str}")
 
+    trainer_callbacks = []
+    if run_config.get("test_output"):
+        test_output = update_file_path(run_config.run_dir, run_config.test_output, run_info_str, path_suffix)
+        test_output_callback = SaveTestOutputs(
+            data_cfg=data_config,
+            model_cfg=model_config,
+            run_cfg=run_config,
+            output_filepath=test_output
+        )
+        trainer_callbacks.append(test_output_callback)
+
+    if run_config.get("onnx_path"):
+        onnx_path = update_file_path(run_config.run_dir, run_config.onnx_path, run_info_str, path_suffix)
+        onnx_callback = SaveONNX(
+            data_cfg=data_config,
+            model_cfg=model_config,
+            run_cfg=run_config,
+            onnx_path=onnx_path
+        )
+        trainer_callbacks.append(onnx_callback)
     # TODO: customized checkpoint callback (save ckpt to another place, not tb logger dir), model_summary callback.
+
     trainer = L.Trainer(
         accelerator=run_config.device,
         devices=run_config.n_devices,
@@ -118,27 +139,6 @@ def main():
     if logger_config.get('debug_file'):
         _logger.debug("Writing debug logs to file: %s", logger_config['debug_file'])
 
-    trainer_callbacks = []
-    if run_config.get("test_output"):
-        test_output = update_file_path(run_config.run_dir, run_config.test_output, run_info_str)
-        test_output_callback = SaveTestOutputs(
-            data_cfg=data_config,
-            model_cfg=model_config,
-            run_cfg=run_config,
-            output_filepath=test_output
-        )
-        trainer_callbacks.append(test_output_callback)
-    
-    if run_config.get("onnx_path"):
-        onnx_path = update_file_path(run_config.run_dir, run_config.onnx_path, run_info_str)
-        onnx_callback = SaveONNX(
-            data_cfg=data_config,
-            model_cfg=model_config,
-            run_cfg=run_config,
-            onnx_path=onnx_path
-        )
-        trainer_callbacks.append(onnx_callback)
-
     model = ModelModule(
         run_cfg=run_config,
         model_class=model_config.model,
@@ -177,8 +177,9 @@ def main():
                 data_config.val_selection = f"{base_selection}({cv_var}%{k_folds} == {(i+1)%k_folds})"
                 data_config.test_selection = f"{base_selection}({cv_var}%{k_folds} == {i})"
                 _logger.info(f"======= Running Fold {i} of {k_folds} =======")
-                train(model, data_config, run_config, file_paths, file_paths, file_paths, _logger,
-                        trainer_callbacks, run_info_str)
+                train(model, model_config, data_config, run_config,
+                        file_paths, file_paths, file_paths,
+                        _logger, run_info_str, "fold_{i}")
         else: # very inflexible way, if no cross-validation variable is specified.
             _logger.info("No cross-validation variable specified.")
             _logger.info("Checking if all folds ('fold_X' in file name) are present in the dataset...")
@@ -199,8 +200,9 @@ def main():
                     if f"fold_{(i+k_folds-1)%k_folds}" in file_path:
                         test_file_paths.append(file_path)
                 _logger.info(f"======= Running Fold {i} of {k_folds} =======")
-                train(model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger,
-                        trainer_callbacks, run_info_str)
+                train(model, model_config, data_config, run_config,
+                        train_file_paths, val_file_paths, test_file_paths,
+                        _logger, run_info_str, "fold_{i}")
     else:
         train_file_paths = []
         val_file_paths = []
@@ -211,7 +213,9 @@ def main():
             val_file_paths.extend(glob.glob(file_path))
         for file_path in data_config.test_files:
             test_file_paths.extend(glob.glob(file_path))
-        train(model, data_config, run_config, train_file_paths, val_file_paths, test_file_paths, _logger, trainer_callbacks, run_info_str)
+        train(model, model_config, data_config, run_config,
+                train_file_paths, val_file_paths, test_file_paths,
+                _logger, run_info_str)
         #TODO: checkpoint loading support
 
 
