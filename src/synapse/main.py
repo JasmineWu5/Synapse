@@ -73,7 +73,8 @@ def train(model, model_config, data_config, run_config,
             onnx_path=onnx_path
         )
         trainer_callbacks.append(onnx_callback)
-    # TODO: customized checkpoint callback (save ckpt to another place, not tb logger dir), model_summary callback.
+    # TODO: customized checkpoint callback (save ckpt to another place, not tb logger dir)
+    # TODO: model_summary callback.
 
     trainer = L.Trainer(
         accelerator=run_config.device,
@@ -152,8 +153,8 @@ def main():
     )
 
     if run_config.cross_validation:
-        # TODO: modify the model checkpoint name, output file name, etc., according to fold number
-        _logger.info("Starting cross validation...")
+        # TODO: modify the model checkpoint name, etc., according to fold number
+        _logger.info("Cross validation: ON")
         if run_config.k_folds is None:
             raise ValueError("k_folds is not specified in run configuration, cannot perform cross-validation.")
         k_folds = run_config.k_folds

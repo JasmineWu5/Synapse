@@ -225,6 +225,7 @@ class DataConfig(ConfigBase):
         'labels': dict,
         'selection': (str, NoneType),
         'new_variables': (dict, NoneType),
+        'assistants': (list, NoneType),
         'spectators': (list, NoneType),
         'weights': (dict, NoneType),
         'label_keys': list,
@@ -244,6 +245,7 @@ class DataConfig(ConfigBase):
         data['active_keys'] = flatten_nested_list([
             *data['inputs'].values(),
             *data['label_keys'],
+            *data.get('assistants', []),
             *data.get('weights', {}).get('vars', [])
         ])
 
@@ -319,6 +321,7 @@ class DataConfig(ConfigBase):
         if self._data['test_files'] is None:
             self._data['test_files'] = []
         self._data.setdefault('spectators', None)
+        self._data.setdefault('assistants', None)
         self._data.setdefault('weights', None)
         self._data.setdefault('selection', None)
         self._data.setdefault('new_variables', None)
