@@ -42,13 +42,13 @@ class DataModule(L.LightningDataModule):
             self.val_dataset = MapStyleDataset(
                 self.val_file_list,
                 'val',
-                self.data_cfg
+                self.val_data_cfg
             )
         if stage == "test" or stage is None:
             self.test_dataset = MapStyleDataset(
                 self.test_file_list,
                 'test',
-                self.data_cfg
+                self.test_data_cfg
             )
 
     def train_dataloader(self):
