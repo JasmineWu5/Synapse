@@ -8,7 +8,8 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 from synapse.core.config import ConfigManager
 from synapse.core.logger import EnhancedLogger
-from synapse.core.model_module import ModelModule, SaveTestOutputs, SaveONNX
+from synapse.core.callbacks import SaveTestOutputs, SaveONNX
+from synapse.core.model_module import ModelModule
 from synapse.core.data_module import DataModule
 
 
