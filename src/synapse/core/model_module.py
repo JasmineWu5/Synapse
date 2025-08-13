@@ -309,6 +309,12 @@ class ModelModule(L.LightningModule):
     def test_step(self, batch, batch_idx):
         return self._test_step(batch)
 
+    def on_train_epoch_start(self) -> None:
+        _logger.info(f"======= Training epoch {self.current_epoch} =======")
+
+    def on_validation_epoch_start(self) -> None:
+        _logger.info(f"======= Validating epoch {self.current_epoch} =======")
+
     def _shared_on_epoch_end(self, stage: str):
 
         outputs = self.step_outputs[stage]
