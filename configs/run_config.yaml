@@ -18,7 +18,7 @@ val_sanity_check: false  # Set to true to run a 2 batch sanity check on validati
 
 cross_validation: true
 
-#cross_validation_var: 'eventNumber'  # Variable to use for cross-validation
+cross_validation_var: 'eventNumber'  # Variable to use for cross-validation, must be in the 'assistants' in data config
 
 k_folds: 3
 
@@ -30,5 +30,7 @@ seed: 42
 use_amp: false
 
 test_output: 'test_output/output_{auto}.root'  # Path to save test output file
+
+#onnx_path: 'onnx_model/model_{auto}.onnx'  # Path to save ONNX model file after test
 
 # export_onnx: 'model.onnx' # not supported yet
