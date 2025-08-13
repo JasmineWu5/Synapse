@@ -6,10 +6,10 @@ import glob
 import lightning as L
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from .core.config import ConfigManager
-from .core.logger import EnhancedLogger
-from .core.model_module import ModelModule, SaveTestOutputs, SaveONNX
-from .core.data_module import DataModule
+from synapse.core.config import ConfigManager
+from synapse.core.logger import EnhancedLogger
+from synapse.core.model_module import ModelModule, SaveTestOutputs, SaveONNX
+from synapse.core.data_module import DataModule
 
 
 def update_file_path(run_dir, file_path: str, replace_auto: str = "", suffix: str = "") -> str:
