@@ -9,10 +9,10 @@ import numpy as np
 import torch
 from torch.optim import Adam, AdamW, RAdam
 
-from synapse.core.config import DataConfig, ModelConfig, RunConfig
-from synapse.core.tools import dynamic_import, is_scalar
-from synapse.core.optimizers import Ranger
-from synapse.core.fileio import write_file
+from .config import DataConfig, ModelConfig, RunConfig
+from .tools import dynamic_import, is_scalar
+from .optimizers import Ranger
+from .fileio import write_file
 
 _logger = logging.getLogger("SynapseLogger")
 
