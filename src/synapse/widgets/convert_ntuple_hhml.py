@@ -97,7 +97,16 @@ def convert(input_data: ak.Array, cfg: dict):
         if 'new_variables' in cfg:
             output_data = build_new_variables(output_data, cfg.get('new_variables'))
             pbar.update(1)  # Update progress bar for new variables
-
+    for field, value_pair in cfg.get('outlier_replacements', {}).items():
+        if field in output_data.fields:
+            if math.isnan(value_pair[0]):  # 如果配置中的第一个值是 NaN
+                output_data[field] = ak.fill_none(ak.nan_to_none(output_data[field]), value_pair[1], axis=None)
+            else:
+                output_data[field] = ak.where(output_data[field] == value_pair[0], value_pair[1], output_data[field])
+        else:
+            raise ValueError(
+                f"Outlier replacement: \nField '{field}' not found in output data. Available fields: {output_data.fields}"
+            )
     return output_data
 
 
@@ -122,9 +131,11 @@ def main():
     config = load_config(config_path)
 
     in_file_paths = []
+    
     for file_path in config.get('in_file_paths', []):
         in_file_paths.extend(glob.glob(file_path))
-
+    
+    
     data_in, file_names_in = read_files(file_paths=in_file_paths,
                                         keys=config['branches'],
                                         merge=config['merge_input'],
