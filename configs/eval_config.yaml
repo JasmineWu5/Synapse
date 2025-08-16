@@ -1,5 +1,5 @@
 common_config: &common_settings
-  file_pattern: "/eos/user/j/jiahui/ATLAS/dihiggs/gnn/hhml_eval/gnn_output_new.h5"
+  file_pattern: "" #dir of hdf5 file
   file_block: "sr" #name of the compound dataset in h5
   weight_col: "weight"
   label_col: "label_signal"
